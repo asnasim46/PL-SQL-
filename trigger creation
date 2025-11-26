@@ -1,0 +1,120 @@
+1/
+create or replace trigger delete_emp_trg
+before delete on employees
+declare
+the_day varchar2(3) := to_char(sysdate, 'DY');
+the_hour pls_integer := to_number(to_char(sysdate, 'HH24'));
+begin
+if (the_hour between 9 and 18) and (the_day not in ('SAT', 'SUN'))
+then
+raise_application_error (-20100, 'Employee records cannot be
+ deleted during the business hours of 9AM and 6PM');
+end if;
+end;
+/
+..........................................
+delete employees
+where employee_id = 100;
+
+2/
+create or replace trigger restrict_salary
+before insert or update of salary on employees
+for each row
+begin
+if :new.salary < 2000 then
+raise_application_error (-20202, 'Employee cannor earn less than $2000. ');
+end if;
+end;
+....................................
+update employees
+set salary = 1500
+where employee_id=100;
+
+3/
+drop table audit_emp purge;
+...........................................
+create table audit_emp
+(user_name varchar2(30),
+time_stamp date,
+id number(6),
+old_last_name varchar2(25),
+new_last_name varchar2(25),
+old_title varchar2 (10),
+new_title varchar2(10),
+old_salary number(8,2),
+new_salary number(8,2))
+..............................................
+create or replace trigger audit_emp_values
+after delete or insert or update on employees
+for each row
+begin
+insert into audit_emp(user_name, time_stamp, id,
+old_last_name, new_last_name, old_title, new_title,
+old_salary, new_salary)
+values (user, sysdate, :old.employee_id, :old.last_name,
+ :new.last_name, :old.job_id, :new.job_id, :old.salary, :new.salary);
+end;
+...............................................
+
+insert into employees (employee_id, last_name, job_id, salary,
+email, hire_date)
+values (999, 'Temp emp', 'SA_REP', 6000, 'TEMPEMP',
+trunc(sysdate));
+
+4/
+drop table log_trig_table purge;
+..........................................
+create table log_trig_table
+(user_id varchar2(30),
+log_date date,
+action varchar2(3));
+..............................................
+
+create or replace trigger logon_trig
+after logon on schema
+begin
+insert into log_trig_table(user_id, log_date, action)
+values (user, sysdate, 'Logging on');
+end;
+/
+...............................................
+create or replace trigger logoff_trig
+before logoff on schema
+begin
+insert into log_trig_table(user_id, log_date, action)
+values (user, sysdate, 'Logging off');
+end;
+/
+
+5/
+
+create or replace trigger restrict_salary
+before insert or update of salary on employees
+for each row
+begin
+if :new.job_id not in ('AD_PRES' , 'AD_VP')
+and :new.salary > 20000 then
+raise_application_error (-20202, 'Employee cannor earn more than $20000. ');
+end if;
+end;
+/
+........................................
+update employees
+set salary = 25500
+where last_name = 'Russell';
+.........................................
+
+6/
+create or replace trigger restrict_salary
+before insert or update of salary on employees
+for each row
+begin
+if :new.salary < :old.salary then
+raise_application_error (-20203, 'You cannot change salary less than the previous salary ');
+end if;
+end;
+..............................................
+update employees
+set salary = 3000
+where employee_id = 100;
+
